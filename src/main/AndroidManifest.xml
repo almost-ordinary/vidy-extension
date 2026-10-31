@@ -46,6 +46,14 @@
                 <data android:scheme="vidy" />
                 <data android:host="play" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="vidy" />
+                <data android:host="play" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
         </activity>
 
         <service
