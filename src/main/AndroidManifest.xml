@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-feature
+        android:name="android.software.leanback"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.touchscreen"
+        android:required="false" />
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <application
+        android:name=".VidyExtensionApp"
+        android:allowBackup="true"
+        android:label="FrameTune Vidy Extension"
+        android:supportsRtl="true"
+        android:usesCleartextTraffic="true"
+        android:theme="@style/Theme.AppCompat.NoActionBar">
+
+        <activity
+            android:name=".ui.ExtensionSetupActivity"
+            android:exported="true"
+            android:theme="@style/Theme.AppCompat.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".player.VidyPlayerActivity"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize"
+            android:exported="true"
+            android:hardwareAccelerated="true"
+            android:screenOrientation="sensorLandscape"
+            android:theme="@style/Theme.AppCompat.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="vidy" />
+                <data android:host="play" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".service.LocalAddonService"
+            android:exported="false" />
+    </application>
+</manifest>
