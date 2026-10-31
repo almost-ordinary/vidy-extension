@@ -41,9 +41,13 @@ class LocalAddonService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        createNotificationChannel()
-        val notification = createNotification()
-        startForeground(NOTIFICATION_ID, notification)
+        try {
+            createNotificationChannel()
+            val notification = createNotification()
+            startForeground(NOTIFICATION_ID, notification)
+        } catch (e: Exception) {
+            android.util.Log.w("LocalAddonService", "Could not startForeground: ${e.message}")
+        }
 
         if (serverInstance == null) {
             serverInstance = LocalAddonServer(8910).also { it.start() }

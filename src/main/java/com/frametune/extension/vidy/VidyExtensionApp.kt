@@ -7,3 +7,4 @@ class VidyExtensionApp : Application() {
         super.onCreate()
     }
 }
+
