@@ -24,7 +24,12 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.Toast
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import com.frametune.extension.vidy.R
 
 /**
@@ -181,18 +186,19 @@ class VidyPlayerActivity : AppCompatActivity() {
         webView.evaluateJavascript("window.TvBridge ? window.TvBridge.getProgress() : null") { result ->
             if (result != null && result != "null" && result.isNotBlank()) {
                 try {
-                    var jsonStr = result
-                    if (jsonStr.startsWith(""") && jsonStr.endsWith(""") && jsonStr.length >= 2) {
-                        jsonStr = org.json.JSONTokener(jsonStr).nextValue().toString()
+                    var objVal: Any? = org.json.JSONTokener(result).nextValue()
+                    while (objVal is String) {
+                        objVal = org.json.JSONTokener(objVal).nextValue()
                     }
-                    val obj = org.json.JSONObject(jsonStr)
-                    val cur = obj.getLong("currentTime")
-                    val dur = obj.optLong("duration", 0L)
-                    if (cur >= VidyProgressStore.MIN_SAVE_SECONDS) {
-                        val saved = progressStore.saveProgress(key, cur, dur)
-                        if (saved) {
-                            lastSavedSeconds = cur
-                            onSaved?.invoke(cur)
+                    if (objVal is org.json.JSONObject) {
+                        val cur = objVal.getLong("currentTime")
+                        val dur = objVal.optLong("duration", 0L)
+                        if (cur >= VidyProgressStore.MIN_SAVE_SECONDS) {
+                            val saved = progressStore.saveProgress(key, cur, dur)
+                            if (saved) {
+                                lastSavedSeconds = cur
+                                onSaved?.invoke(cur)
+                            }
                         }
                     }
                 } catch (e: Exception) {
@@ -300,6 +306,75 @@ class VidyPlayerActivity : AppCompatActivity() {
         }
 
         return super.dispatchKeyEvent(event)
+    }
+
+    private val remoteControlReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val action = intent?.getStringExtra("action") ?: return
+            handleRemoteAction(action)
+        }
+    }
+
+    private fun handleRemoteAction(action: String) {
+        val upper = action.uppercase()
+        Log.i(TAG, "handleRemoteAction: $upper")
+        when (upper) {
+            "DPAD_CENTER", "OK" -> {
+                webView.evaluateJavascript("window.TvBridge ? window.TvBridge.clickFocused() : false") { result ->
+                    if (result == "false" || result == "null") {
+                        webView.evaluateJavascript("window.TvBridge && window.TvBridge.togglePlayPause()", null)
+                    }
+                }
+            }
+            "MEDIA_PLAY_PAUSE", "MEDIA_TOGGLE", "PLAY", "PAUSE" -> {
+                webView.evaluateJavascript("window.TvBridge && window.TvBridge.togglePlayPause()", null)
+            }
+            "DPAD_LEFT", "SEEK_BACKWARD_10S", "REWIND" -> {
+                webView.evaluateJavascript("window.TvBridge && window.TvBridge.seek(-10)", null)
+            }
+            "DPAD_RIGHT", "SEEK_FORWARD_10S", "FAST_FORWARD" -> {
+                webView.evaluateJavascript("window.TvBridge && window.TvBridge.seek(10)", null)
+            }
+            "SEEK_BACKWARD_30S", "REWIND_30" -> {
+                webView.evaluateJavascript("window.TvBridge && window.TvBridge.seek(-30)", null)
+            }
+            "SEEK_FORWARD_30S", "FORWARD_30" -> {
+                webView.evaluateJavascript("window.TvBridge && window.TvBridge.seek(30)", null)
+            }
+            "DPAD_UP" -> {
+                webView.evaluateJavascript("window.TvBridge && window.TvBridge.moveFocus('prev')", null)
+            }
+            "DPAD_DOWN" -> {
+                webView.evaluateJavascript("window.TvBridge && window.TvBridge.moveFocus('next')", null)
+            }
+            "BACK" -> {
+                if (customView != null) {
+                    (webView.webChromeClient as? WebChromeClient)?.onHideCustomView()
+                    return
+                }
+                saveCurrentProgress { savedSec ->
+                    Toast.makeText(this@VidyPlayerActivity, "Progress saved at ${VidyProgressStore.formatTime(savedSec)}", Toast.LENGTH_SHORT).show()
+                }
+                mainHandler.postDelayed({ finish() }, 200)
+            }
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        val filter = IntentFilter("com.frametune.extension.vidy.ACTION_REMOTE_CONTROL")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.registerReceiver(this, remoteControlReceiver, filter, ContextCompat.RECEIVER_EXPORTED)
+        } else {
+            registerReceiver(remoteControlReceiver, filter)
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        try {
+            unregisterReceiver(remoteControlReceiver)
+        } catch (_: Exception) {}
     }
 
     override fun onPause() {

@@ -83,10 +83,10 @@
         getProgress: function() {
             const video = getVideo();
             if (video && !isNaN(video.currentTime) && !isNaN(video.duration) && video.duration > 0) {
-                return JSON.stringify({
+                return {
                     currentTime: Math.floor(video.currentTime),
                     duration: Math.floor(video.duration)
-                });
+                };
             }
             return null;
         },
