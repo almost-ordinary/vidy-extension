@@ -1,4 +1,5 @@
 *.apk
+!frametune-extension-vidy-debug.apk
 *.apkm
 *.aar
 build/

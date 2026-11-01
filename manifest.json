@@ -1,0 +1,16 @@
+{
+  "id": "org.frametune.extension.vidy",
+  "name": "Vidy Embed Player",
+  "version": "1.0.0",
+  "description": "Vidy embed streaming with multi-audio, subtitle selection & backup servers.",
+  "resources": ["stream"],
+  "types": ["movie", "series"],
+  "idPrefixes": ["tt"],
+  "streamEndpoint": "http://127.0.0.1:8910/stream/{type}/{id}.json",
+  "companionPackage": {
+    "packageName": "com.frametune.extension.vidy",
+    "name": "FrameTune Vidy Extension",
+    "apkUrl": "https://raw.githubusercontent.com/almost-ordinary/vidy-extension/main/frametune-extension-vidy-debug.apk",
+    "minVersionCode": 1
+  }
+}
