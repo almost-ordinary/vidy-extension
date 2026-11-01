@@ -52,3 +52,4 @@ adb -s <tv_ip>:5555 install -r build/outputs/apk/debug/frametune-extension-vidy-
 # Launch:
 adb -s <tv_ip>:5555 shell am start -n com.frametune.extension.vidy/.ui.ExtensionSetupActivity
 ```
+
