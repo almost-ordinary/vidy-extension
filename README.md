@@ -1,55 +1,81 @@
-# FrameTune TV — Vidy Extension (`:extension-vidy`)
+# Vidy TV Extension
 
-Standalone on-device extension providing direct streaming integration with **Vidy Embed Player** (`https://vidy.st/`) for **FrameTune TV**.
-
----
-
-## 🔒 Isolation & Safety Rules
-
-- **Git Isolation**: This directory is an independent local Git repository (`extensions/vidy/.git`). It is never pushed to the FrameTune TV remote repo.
-- **Zero Middle Server**: Runs 100% on-device on Android TV via localhost loopback (`127.0.0.1:8910`). No Cloudflare or external proxy required.
-- **Decoupled Architecture**: FrameTune TV (`:app`) has no scrapers built-in; it communicates with this extension via the Stremio Addon v3 protocol.
+An on-device **Stremio-compatible Addon and TV Player** for Android TV devices that streams via the [Vidy Embed Player](https://vidy.st/).
 
 ---
 
-## ⚙️ Architecture & Technical Specifications
+## 🌟 Features
 
-| Parameter | Value |
+- **Inbuilt Server Selection**: Instant server failover with multiple worldwide streaming nodes (Miami, Boise, Nashville, Chicago, Vegas, Reno, Oakland, Seattle).
+- **Multi-Quality Support**: Adaptive streaming in 4K UHD, 1080p Full HD, 720p, and 480p.
+- **Audio & Subtitles**: Multi-language audio tracks and OpenSubtitles selection directly on-screen.
+- **100% On-Device / Zero Middle Server**: Runs an embedded lightweight HTTP server locally (`127.0.0.1:8910`) on the TV. No Cloudflare proxy or external server hosting required.
+- **Full TV Remote & D-Pad Support**: Injected D-Pad navigation bridge provides smooth focus highlights, play/pause toggle, and ±10s seek with TV remote keys.
+- **Automatic IMDb to TMDB Resolution**: Built-in on-device metadata resolver translating IMDb IDs (`tt...`) into TMDB IDs.
+
+---
+
+## 🚀 How It Works
+
+1. **Local Addon Server**: Listens on `http://127.0.0.1:8910` and serves the standard Stremio Addon v3 protocol:
+   - Manifest: `GET /manifest.json`
+   - Stream Resolver: `GET /stream/{type}/{id}.json`
+2. **Leanback Player**: Launches `vidy://play?type={type}&tmdb={tmdbId}` into a hardware-accelerated TV `WebView` optimized for Android TV displays.
+3. **D-Pad Bridge**: Bridges TV remote key events (Up/Down/Left/Right/OK/Back) into the player interface for remote control.
+
+---
+
+## 🎮 TV Remote Navigation
+
+| Remote Button | Action in Player |
 |---|---|
-| **Package ID** | `com.frametune.extension.vidy` |
-| **Min SDK / Compile SDK** | 21 / 34 |
-| **Local Loopback Port** | `8910` (`http://127.0.0.1:8910/manifest.json`) |
-| **Stream Endpoint** | `http://127.0.0.1:8910/stream/{type}/{id}.json` |
-| **Intent Scheme** | `vidy://play?type={type}&tmdb={tmdbId}&season={s}&episode={e}` |
-| **Player Activity** | `com.frametune.extension.vidy.player.VidyPlayerActivity` |
-| **Setup Activity** | `com.frametune.extension.vidy.ui.ExtensionSetupActivity` |
-| **Background Service** | `com.frametune.extension.vidy.service.LocalAddonService` |
-| **Resolver** | `com.frametune.extension.vidy.resolver.ImdbToTmdbResolver` (Cinemeta on-device API) |
+| **D-Pad Left / Right** | Seek backward (-10s) / forward (+10s) |
+| **D-Pad Center (OK)** | Toggle Play / Pause or click focused menu item |
+| **D-Pad Up / Down** | Navigate player controls, servers, quality, audio & subtitles |
+| **Media Play / Pause** | Toggle playback |
+| **Back Button** | Dismiss open menus / exit player |
 
 ---
 
-## 🎮 Navigation & Remote Controls
+## 📦 Stremio Addon Manifest
 
-Controlled by TV D-Pad or companion mobile remote (`com.frametune.remote`):
-- **D-Pad Left / Right**: ±10 seconds seek in Vidy player.
-- **D-Pad Center (OK)**: Toggles play/pause or activates focused menu item (server, quality, audio track, subtitles).
-- **D-Pad Up / Down**: Focuses through Vidy player controls with red highlight (`#E50914`).
-- **Media Play / Pause**: Instant toggle via HTML5 video element bridge.
-- **Back Button**: Dismisses popups and exits cleanly back to FrameTune TV launcher.
+Once the application is running on your Android TV device:
+```
+http://127.0.0.1:8910/manifest.json
+```
+Add this URL to any compatible TV player or addon manager on your device.
 
 ---
 
-## 🛠️ Build & Verification Commands
+## 🛠️ Building from Source
 
-```powershell
-# From extensions/vidy directory:
-.\gradlew.bat testDebugUnitTest
-.\gradlew.bat assembleDebug
+### Prerequisites
+- Android SDK 34
+- JDK 17+
+- Gradle (wrapper included)
 
-# Install on TV:
-adb -s <tv_ip>:5555 install -r build/outputs/apk/debug/frametune-extension-vidy-debug.apk
-
-# Launch:
-adb -s <tv_ip>:5555 shell am start -n com.frametune.extension.vidy/.ui.ExtensionSetupActivity
+### Build Debug APK
+```bash
+./gradlew assembleDebug
+```
+The compiled APK will be at:
+```
+build/outputs/apk/debug/frametune-extension-vidy-debug.apk
 ```
 
+### Run Unit Tests
+```bash
+./gradlew testDebugUnitTest
+```
+
+### Install to Android TV Device via ADB
+```bash
+adb connect <tv-ip>:5555
+adb install -r build/outputs/apk/debug/frametune-extension-vidy-debug.apk
+adb shell am start -n com.frametune.extension.vidy/.ui.ExtensionSetupActivity
+```
+
+---
+
+## 📄 License
+MIT License
