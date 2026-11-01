@@ -57,6 +57,17 @@ class VidyPlayerActivity : AppCompatActivity() {
     private var customView: View? = null
     private var customViewCallback: WebChromeClient.CustomViewCallback? = null
     private val mainHandler = Handler(Looper.getMainLooper())
+    private lateinit var progressStore: VidyProgressStore
+    private var currentContentKey: String? = null
+    private var pendingResumeSeconds: Long? = null
+    private var lastSavedSeconds: Long = 0L
+
+    private val progressSaveTicker = object : Runnable {
+        override fun run() {
+            saveCurrentProgress()
+            mainHandler.postDelayed(this, 5000L)
+        }
+    }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -71,6 +82,7 @@ class VidyPlayerActivity : AppCompatActivity() {
                 )
 
         setContentView(R.layout.activity_vidy_player)
+        progressStore = VidyProgressStore.getInstance(this)
 
         webView = findViewById(R.id.webViewPlayer)
         customViewContainer = findViewById(R.id.flCustomViewContainer)
@@ -86,6 +98,7 @@ class VidyPlayerActivity : AppCompatActivity() {
 
         setupWebView()
         loadVidyUrlFromIntent()
+        mainHandler.postDelayed(progressSaveTicker, 5000L)
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -144,6 +157,13 @@ class VidyPlayerActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 pbLoading.visibility = View.GONE
                 injectTvBridgeScript()
+                pendingResumeSeconds?.let { resumeSec ->
+                    mainHandler.postDelayed({
+                        webView.evaluateJavascript("window.TvBridge && window.TvBridge.seekTo($resumeSec)", null)
+                        Toast.makeText(this@VidyPlayerActivity, "Resuming at ${VidyProgressStore.formatTime(resumeSec)}", Toast.LENGTH_SHORT).show()
+                        pendingResumeSeconds = null
+                    }, 1500)
+                }
             }
 
             override fun shouldInterceptRequest(
@@ -152,6 +172,32 @@ class VidyPlayerActivity : AppCompatActivity() {
             ): WebResourceResponse? {
                 // Allows cross-origin video assets and requests from Vidy to load cleanly
                 return super.shouldInterceptRequest(view, request)
+            }
+        }
+    }
+
+    private fun saveCurrentProgress(onSaved: ((Long) -> Unit)? = null) {
+        val key = currentContentKey ?: return
+        webView.evaluateJavascript("window.TvBridge ? window.TvBridge.getProgress() : null") { result ->
+            if (result != null && result != "null" && result.isNotBlank()) {
+                try {
+                    var jsonStr = result
+                    if (jsonStr.startsWith(""") && jsonStr.endsWith(""") && jsonStr.length >= 2) {
+                        jsonStr = org.json.JSONTokener(jsonStr).nextValue().toString()
+                    }
+                    val obj = org.json.JSONObject(jsonStr)
+                    val cur = obj.getLong("currentTime")
+                    val dur = obj.optLong("duration", 0L)
+                    if (cur >= VidyProgressStore.MIN_SAVE_SECONDS) {
+                        val saved = progressStore.saveProgress(key, cur, dur)
+                        if (saved) {
+                            lastSavedSeconds = cur
+                            onSaved?.invoke(cur)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.d(TAG, "Failed to parse Vidy progress: ${e.message}")
+                }
             }
         }
     }
@@ -188,6 +234,13 @@ class VidyPlayerActivity : AppCompatActivity() {
         val episode = uri.getQueryParameter("episode")?.toIntOrNull()
 
         val vidyUrl = buildVidyUrl(type, tmdbId, season, episode)
+        currentContentKey = VidyProgressStore.buildContentKey(type, tmdbId, season, episode)
+        val savedRecord = progressStore.getProgress(currentContentKey!!)
+        if (savedRecord != null && savedRecord.positionSeconds >= VidyProgressStore.MIN_SAVE_SECONDS) {
+            pendingResumeSeconds = savedRecord.positionSeconds
+            Log.i(TAG, "Found saved Vidy progress: ${savedRecord.positionSeconds}s for $currentContentKey")
+        }
+
         Log.i(TAG, "Launching Vidy player: $vidyUrl")
         webView.loadUrl(vidyUrl)
     }
@@ -238,12 +291,20 @@ class VidyPlayerActivity : AppCompatActivity() {
                     (webView.webChromeClient as? WebChromeClient)?.onHideCustomView()
                     return true
                 }
-                finish()
+                saveCurrentProgress { savedSec ->
+                    Toast.makeText(this@VidyPlayerActivity, "Progress saved at ${VidyProgressStore.formatTime(savedSec)}", Toast.LENGTH_SHORT).show()
+                }
+                mainHandler.postDelayed({ finish() }, 200)
                 return true
             }
         }
 
         return super.dispatchKeyEvent(event)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        saveCurrentProgress()
     }
 
     override fun onDestroy() {

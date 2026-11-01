@@ -71,6 +71,26 @@
             return false;
         },
 
+        seekTo: function(seconds) {
+            const video = getVideo();
+            if (video) {
+                video.currentTime = seconds;
+                return true;
+            }
+            return false;
+        },
+
+        getProgress: function() {
+            const video = getVideo();
+            if (video && !isNaN(video.currentTime) && !isNaN(video.duration) && video.duration > 0) {
+                return JSON.stringify({
+                    currentTime: Math.floor(video.currentTime),
+                    duration: Math.floor(video.duration)
+                });
+            }
+            return null;
+        },
+
         moveFocus: function(direction) {
             updateFocusables();
             if (focusableElements.length === 0) return;
